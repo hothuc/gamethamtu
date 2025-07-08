@@ -304,6 +304,8 @@ const weapons = [
 	"Wrench"
 ];
 let roles = {};     // socket.id => role
+let playerItems = {}; // playerItems[socket.id] = { evidences: [], weapons: [] }
+let murderSet = {};   // { evidence, weapon, murdererId }
 let hostId = null;  // ai là host
 
 function assignRoles() {
@@ -313,10 +315,52 @@ function assignRoles() {
     return;
   }
 
-  const murderer = ids[Math.floor(Math.random() * ids.length)];
+   // Reset
+  roles = {};
+  playerItems = {};
+  murderSet = {};
+
+  // Tạo danh sách bằng chứng và hung khí ngẫu nhiên
+  const shuffledEvidences = evidences.slice().sort(() => 0.5 - Math.random());
+  const shuffledWeapons = weapons.slice().sort(() => 0.5 - Math.random());
+
+  // Phân phát cho mỗi người chơi 4 bằng chứng + 4 hung khí
+  ids.forEach((id, index) => {
+    playerItems[id] = {
+      evidences: shuffledEvidences.slice(index * 4, index * 4 + 4),
+      weapons: shuffledWeapons.slice(index * 4, index * 4 + 4)
+    };
+  });
+
+   // ✅ PHẢI khai báo murdererId TRƯỚC khi dùng nó
+  const murdererId = ids[Math.floor(Math.random() * ids.length)];
+  roles[murdererId] = 'Murderer';
+
+  // Các người chơi còn lại là Investigator
   ids.forEach(id => {
-    roles[id] = (id === murderer) ? 'Murderer' : 'Investigator';
+    if (id !== murdererId) roles[id] = 'Investigator';
+  });
+
+   // Murderer chọn ngẫu nhiên evidence và weapon trong bộ của mình
+  const murdererItems = playerItems[murdererId];
+  const selectedEvidence = murdererItems.evidences[Math.floor(Math.random() * 4)];
+  const selectedWeapon = murdererItems.weapons[Math.floor(Math.random() * 4)];
+  murderSet = {
+    murdererId,
+    evidence: selectedEvidence,
+    weapon: selectedWeapon
+  };
+
+  // Gửi dữ liệu riêng biệt cho từng người chơi
+  ids.forEach(id => {
     io.to(id).emit('role', roles[id]);
+    io.to(id).emit('your-items', playerItems[id]);
+  });
+
+  // Gửi cho tất cả người chơi thông tin vụ án (chỉ là hung khí + bằng chứng, không biết của ai)
+  io.emit('murder-info', {
+    evidence: murderSet.evidence,
+    weapon: murderSet.weapon
   });
 }
 

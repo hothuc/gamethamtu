@@ -14,6 +14,29 @@ socket.on('role', (role) => {
   document.getElementById('role').innerText = `🎭 Vai trò của bạn: ${role}`;
 });
 
+socket.on('your-items', (data) => {
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <h3>🧳 Vật chứng của bạn</h3>
+    <p><strong>Bằng chứng:</strong></p>
+    <ul>${data.evidences.map(e => `<li>${e}</li>`).join('')}</ul>
+    <p><strong>Hung khí:</strong></p>
+    <ul>${data.weapons.map(w => `<li>${w}</li>`).join('')}</ul>
+  `;
+  document.body.appendChild(div);
+});
+
+socket.on('murder-info', (data) => {
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <h3>🕵️ Manh mối từ hiện trường</h3>
+    <p><strong>Bằng chứng:</strong> ${data.evidence}</p>
+    <p><strong>Hung khí:</strong> ${data.weapon}</p>
+  `;
+  document.body.appendChild(div);
+});
+
+
 socket.on('you-are-host', () => {
   const btn = document.createElement('button');
   btn.innerText = '🔔 Bắt đầu ván chơi';
@@ -29,13 +52,4 @@ socket.on('message', msg => {
   alert(msg); // Hiển thị thông báo từ server (ví dụ: chưa đủ người)
 });
 
-socket.on('show-evidence-weapon', (data) => {
-  const div = document.createElement('div');
-  div.innerHTML = `
-    <h3>🧾 Bằng chứng</h3>
-    <ul>${data.evidences.map(e => `<li>${e}</li>`).join('')}</ul>
-    <h3>🔪 Hung khí</h3>
-    <ul>${data.weapons.map(w => `<li>${w}</li>`).join('')}</ul>
-  `;
-  document.body.appendChild(div);
-});
+
