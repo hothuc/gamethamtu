@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Deception Mini Game</title>
+  <link rel="stylesheet" href="style.css">
   <script src="/socket.io/socket.io.js"></script>
   <script src="game.js" defer></script>
 </head>
 <body>
   <h1>🕵️ Deception: Mini Multiplayer</h1>
-  <input id="name" placeholder="Nhập tên" />
-  <button onclick="joinGame()">Tham gia</button>
-  <button onclick="startGame()">Bắt đầu</button>
+
+  <div style="margin-bottom: 10px;">
+    <input id="name" placeholder="Nhập tên" />
+    <button onclick="joinGame()">Tham gia</button>
+    <button onclick="startGame()">Bắt đầu</button>
+  </div>
+
   <div id="players"></div>
-  <div id="role" style="margin-top: 20px; font-weight: bold;"></div>
+  <div id="role"></div>
 </body>
 </html>
-
-<style>
-  h3 { margin-top: 20px; }
-  ul { padding-left: 20px; }
-  li { margin: 4px 0; font-weight: bold; }
-</style>

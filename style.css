@@ -1,5 +1,51 @@
-<style>
-  h3 { margin-top: 20px; }
-  ul { padding-left: 20px; }
-  li { margin: 4px 0; font-weight: bold; }
-</style>
+/* Nền trang và chữ */
+body {
+  background-color: #f0f0f0; /* Nền xám nhẹ */
+  color: #222;
+  font-family: Arial, sans-serif;
+  margin: 20px;
+}
+
+/* Input và Button */
+input, button {
+  padding: 8px 12px;
+  margin: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #fff;
+  color: #000;
+}
+
+button:hover {
+  background-color: #e0e0e0;
+  cursor: pointer;
+}
+
+/* Tiêu đề */
+h1, h2, h3 {
+  color: #333;
+}
+
+/* Bảng */
+#playerItemGrid {
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-family: Arial, sans-serif;
+  background-color: white;
+  box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+}
+
+#playerItemGrid td, #playerItemGrid th {
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  white-space: nowrap;
+  color: #000;
+}
+
+#playerItemGrid td:first-child {
+  font-weight: bold;
+  background-color: #f3f3f3;
+}

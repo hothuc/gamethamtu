@@ -341,16 +341,6 @@ function assignRoles() {
     if (id !== murdererId) roles[id] = 'Investigator';
   });
 
-   // Murderer chọn ngẫu nhiên evidence và weapon trong bộ của mình
-  const murdererItems = playerItems[murdererId];
-  const selectedEvidence = murdererItems.evidences[Math.floor(Math.random() * 4)];
-  const selectedWeapon = murdererItems.weapons[Math.floor(Math.random() * 4)];
-  murderSet = {
-    murdererId,
-    evidence: selectedEvidence,
-    weapon: selectedWeapon
-  };
-
   // Gửi dữ liệu riêng biệt cho từng người chơi
   ids.forEach(id => {
     io.to(id).emit('role', roles[id]);
@@ -362,6 +352,13 @@ function assignRoles() {
     evidence: murderSet.evidence,
     weapon: murderSet.weapon
   });
+
+  // Gửi toàn bộ danh sách hung khí & bằng chứng của từng người cho tất cả
+  io.emit('all-player-items', {
+    allItems: playerItems,
+    playerNames: players
+  });
+
 }
 
 io.on('connection', (socket) => {
