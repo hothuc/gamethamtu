@@ -29,17 +29,29 @@ socket.on('message', msg => {
   alert(msg); // Hiển thị thông báo từ server (ví dụ: chưa đủ người)
 });
 
-socket.on('all-player-items', ({ allItems, playerNames }) => {
+socket.on('confirm-button-hide', () => {
+  const btn = document.getElementById('confirmBtn');
+  if (btn) btn.remove();
+});
+
+socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
   const oldTable = document.getElementById('playerItemGrid');
   if (oldTable) oldTable.remove();
 
   const table = document.createElement('table');
   table.id = 'playerItemGrid';
 
+  const title = document.createElement('h2');
+  title.innerText = '📋 Danh sách hung khí & bằng chứng';
+  document.body.appendChild(title);
+  document.body.appendChild(table);
+
+  let selectedWeapon = null;
+  let selectedEvidence = null;
+
   for (const id in allItems) {
     const items = allItems[id];
 
-    // Row 1: weapons
     const weaponRow = document.createElement('tr');
     const nameCell = document.createElement('td');
     nameCell.rowSpan = 2;
@@ -53,35 +65,71 @@ socket.on('all-player-items', ({ allItems, playerNames }) => {
       const td = document.createElement('td');
       const btn = document.createElement('button');
       btn.className = 'cell-button';
+      btn.classList.add('interactive-btn');
       btn.innerText = weapon;
       btn.style.backgroundColor = '#00FFFF';
-      btn.onclick = () => {
-        btn.classList.toggle('selected');
-      };
+      btn.dataset.type = 'weapon';
+      btn.dataset.owner = id;
+
+      const originalColor = btn.style.backgroundColor;
+
+      if (myId === murdererId && myId === id) {
+        btn.onclick = () => {
+          if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            btn.style.backgroundColor = originalColor;
+            selectedWeapon = null;
+          } else {
+            if (selectedWeapon) return;
+            btn.classList.add('selected');
+            btn.style.backgroundColor = 'red';
+            selectedWeapon = weapon;
+          }
+          updateConfirmBtn();
+        };
+      }
+
       td.appendChild(btn);
       td.style.background = '#00FFFF';
       weaponRow.appendChild(td);
     });
     table.appendChild(weaponRow);
 
-    // Row 2: evidences
     const evidenceRow = document.createElement('tr');
     items.evidences.forEach(evi => {
       const td = document.createElement('td');
       const btn = document.createElement('button');
       btn.className = 'cell-button';
+      btn.classList.add('interactive-btn');
       btn.innerText = evi;
       btn.style.backgroundColor = '#FFD700';
-      btn.onclick = () => {
-        btn.classList.toggle('selected');
-      };
+      btn.dataset.type = 'evidence';
+      btn.dataset.owner = id;
+
+      const originalColor = btn.style.backgroundColor;
+
+      if (myId === murdererId && myId === id) {
+        btn.onclick = () => {
+          if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            btn.style.backgroundColor = originalColor;
+            selectedEvidence = null;
+          } else {
+            if (selectedEvidence) return;
+            btn.classList.add('selected');
+            btn.style.backgroundColor = 'red';
+            selectedEvidence = evi;
+          }
+          updateConfirmBtn();
+        };
+      }
+
       td.appendChild(btn);
       td.style.background = '#FFD700';
       evidenceRow.appendChild(td);
     });
     table.appendChild(evidenceRow);
 
-    // Khoảng cách giữa các người chơi (dòng trắng)
     const spacer = document.createElement('tr');
     const spacerTd = document.createElement('td');
     spacerTd.colSpan = 9;
@@ -91,8 +139,44 @@ socket.on('all-player-items', ({ allItems, playerNames }) => {
     table.appendChild(spacer);
   }
 
-  const title = document.createElement('h2');
-  title.innerText = '📋 Danh sách hung khí & bằng chứng';
-  document.body.appendChild(title);
-  document.body.appendChild(table);
+  // Nếu là Murderer thì thêm nút xác nhận
+  if (myId === murdererId) {
+    const confirmBtn = document.createElement('button');
+    confirmBtn.id = 'confirmBtn';
+    confirmBtn.innerText = '✅ Xác nhận gây án';
+    confirmBtn.disabled = true;
+    confirmBtn.style.marginTop = '10px';
+    confirmBtn.onclick = () => {
+      socket.emit('murderer-selection', {
+        evidence: selectedEvidence,
+        weapon: selectedWeapon
+      });
+      confirmBtn.remove();
+    };
+    document.body.appendChild(confirmBtn);
+  }
+
+  function updateConfirmBtn() {
+    const confirmBtn = document.getElementById('confirmBtn');
+    if (confirmBtn) {
+      confirmBtn.disabled = !(selectedWeapon && selectedEvidence);
+    }
+  }
+  socket.on('enable-interaction', () => {
+  document.querySelectorAll('.interactive-btn').forEach(button => {
+    const originalColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
+
+    button.onclick = () => {
+      if (button.classList.contains('selected')) {
+        button.classList.remove('selected');
+        button.style.backgroundColor = originalColor;
+      } else {
+        button.classList.add('selected');
+        button.style.backgroundColor = 'red';
+      }
+    };
+  });
 });
+
+});
+

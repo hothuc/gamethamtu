@@ -307,6 +307,7 @@ let roles = {};     // socket.id => role
 let playerItems = {}; // playerItems[socket.id] = { evidences: [], weapons: [] }
 let murderSet = {};   // { evidence, weapon, murdererId }
 let hostId = null;  // ai là host
+let murdererConfirmed = false;
 
 function assignRoles() {
   const ids = Object.keys(players);
@@ -318,8 +319,8 @@ function assignRoles() {
    // Reset
   roles = {};
   playerItems = {};
-  murderSet = {};
-
+  murderSet = { murdererId: null, evidence: null, weapon: null };;
+  let murdererConfirmed = false;
   // Tạo danh sách bằng chứng và hung khí ngẫu nhiên
   const shuffledEvidences = evidences.slice().sort(() => 0.5 - Math.random());
   const shuffledWeapons = weapons.slice().sort(() => 0.5 - Math.random());
@@ -335,6 +336,7 @@ function assignRoles() {
    // ✅ PHẢI khai báo murdererId TRƯỚC khi dùng nó
   const murdererId = ids[Math.floor(Math.random() * ids.length)];
   roles[murdererId] = 'Murderer';
+  murderSet.murdererId = murdererId;
 
   // Các người chơi còn lại là Investigator
   ids.forEach(id => {
@@ -353,10 +355,18 @@ function assignRoles() {
     weapon: murderSet.weapon
   });
 
+  io.to(murdererId).emit('murderer-choose', {
+  items: playerItems[murdererId]
+  });
+
   // Gửi toàn bộ danh sách hung khí & bằng chứng của từng người cho tất cả
-  io.emit('all-player-items', {
-    allItems: playerItems,
-    playerNames: players
+  ids.forEach(id => {
+	io.to(id).emit('all-player-items', {
+      allItems: playerItems,
+      playerNames: players,
+      murdererId: murdererId,
+      myId: id
+  	});
   });
 
 }
@@ -389,6 +399,22 @@ io.on('connection', (socket) => {
         weapons: selectedWeapons
     });
     assignRoles();
+  });
+  socket.on('murderer-selection', ({ evidence, weapon }) => {
+  	// Kiểm tra có đúng là murderer không
+  	if (!murderSet.murdererId || socket.id !== murderSet.murdererId) return;
+
+  	// Lưu lại lựa chọn
+  	murderSet.evidence = evidence;
+  	murderSet.weapon = weapon;
+  	murdererConfirmed = true;
+
+  	// Gửi thông báo tới tất cả người chơi
+  	io.emit('message', '🔒 Murderer đã chọn xong bằng chứng và hung khí!');
+	//cho tuong tac vao bang
+	io.emit('enable-interaction');
+	// Thông báo riêng để ẩn nút xác nhận
+  	io.to(socket.id).emit('confirm-button-hide');
   });
 
   socket.on('disconnect', () => {
