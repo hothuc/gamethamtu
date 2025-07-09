@@ -29,126 +29,70 @@ socket.on('message', msg => {
   alert(msg); // Hiển thị thông báo từ server (ví dụ: chưa đủ người)
 });
 
-// socket.on('all-player-items', ({ allItems, playerNames }) => {
-//   // Xóa bảng cũ nếu đã tồn tại
-//   const oldTable = document.getElementById('playerItemGrid');
-//   if (oldTable) oldTable.remove();
-
-//   // Tạo bảng mới
-//   const table = document.createElement('table');
-//   table.id = 'playerItemGrid';
-//   table.border = 1;
-//   table.style.borderCollapse = 'collapse';
-//   table.style.marginTop = '20px';
-//   table.style.width = 'auto';
-//   table.style.maxWidth = '100%';
-//   table.style.tableLayout = 'auto';
-
-
-//   // Duyệt qua tất cả người chơi
-//   for (const id in allItems) {
-//     const items = allItems[id];
-
-//     // === Dòng 1: Tên người chơi + danh sách hung khí ===
-//     const weaponRow = document.createElement('tr');
-
-//     const nameCell = document.createElement('td');
-//     nameCell.rowSpan = 2;
-//     nameCell.style.fontWeight = 'bold';
-//     nameCell.style.textAlign = 'center';
-//     nameCell.style.background = '#f0f0f0';
-//     nameCell.innerText = playerNames[id] || 'Người chơi';
-//     weaponRow.appendChild(nameCell);
-
-//     items.weapons.forEach(weapon => {
-//       const td = document.createElement('td');
-//       td.style.background = '#00FFFF';
-//       td.innerText = weapon;
-//       weaponRow.appendChild(td);
-//     });
-//     table.appendChild(weaponRow);
-
-//     // === Dòng 2: bằng chứng ===
-//     const evidenceRow = document.createElement('tr');
-//     items.evidences.forEach(ev => {
-//       const td = document.createElement('td');
-//       td.style.background = '#FFD700';
-//       td.innerText = ev;
-//       evidenceRow.appendChild(td);
-//     });
-//     table.appendChild(evidenceRow);
-//   }
-
-//   // Hiển thị tiêu đề và bảng
-//   const title = document.createElement('h2');
-//   title.innerText = '📋 Danh sách vũ khí và bằng chứng của tất cả người chơi';
-//   document.body.appendChild(title);
-//   document.body.appendChild(table);
-// });
-
 socket.on('all-player-items', ({ allItems, playerNames }) => {
-  // Xóa bảng cũ nếu đã tồn tại
   const oldTable = document.getElementById('playerItemGrid');
   if (oldTable) oldTable.remove();
 
-  // Tạo bảng mới
   const table = document.createElement('table');
   table.id = 'playerItemGrid';
-  table.border = 1;
-  table.style.borderCollapse = 'collapse';
-  table.style.marginTop = '20px';
-  table.style.width = 'auto';
-  table.style.maxWidth = '100%';
-  table.style.tableLayout = 'auto';
 
-  // Duyệt qua tất cả người chơi
   for (const id in allItems) {
     const items = allItems[id];
 
-    // === Dòng 1: Tên người chơi + danh sách hung khí ===
+    // Row 1: weapons
     const weaponRow = document.createElement('tr');
-
     const nameCell = document.createElement('td');
     nameCell.rowSpan = 2;
-    nameCell.style.fontWeight = 'bold';
-    nameCell.style.textAlign = 'center';
-    nameCell.style.background = '#f0f0f0';
-    nameCell.style.padding = '10px';
     nameCell.innerText = playerNames[id] || 'Người chơi';
+    nameCell.style.background = '#f3f3f3';
+    nameCell.style.textAlign = 'center';
+    nameCell.style.fontWeight = 'bold';
     weaponRow.appendChild(nameCell);
 
     items.weapons.forEach(weapon => {
       const td = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.className = 'cell-button';
+      btn.innerText = weapon;
+      btn.style.backgroundColor = '#00FFFF';
+      btn.onclick = () => {
+        btn.classList.toggle('selected');
+      };
+      td.appendChild(btn);
       td.style.background = '#00FFFF';
-      td.innerText = weapon;
       weaponRow.appendChild(td);
     });
     table.appendChild(weaponRow);
 
-    // === Dòng 2: Bằng chứng ===
+    // Row 2: evidences
     const evidenceRow = document.createElement('tr');
-    items.evidences.forEach((ev, index) => {
+    items.evidences.forEach(evi => {
       const td = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.className = 'cell-button';
+      btn.innerText = evi;
+      btn.style.backgroundColor = '#FFD700';
+      btn.onclick = () => {
+        btn.classList.toggle('selected');
+      };
+      td.appendChild(btn);
       td.style.background = '#FFD700';
-      td.innerText = ev;
-      td.style.fontWeight = 'normal'; // Không in đậm
       evidenceRow.appendChild(td);
     });
     table.appendChild(evidenceRow);
 
-    // === Dòng trống ===
-    const spacerRow = document.createElement('tr');
+    // Khoảng cách giữa các người chơi (dòng trắng)
+    const spacer = document.createElement('tr');
     const spacerTd = document.createElement('td');
-    spacerTd.colSpan = 5; // 1 tên + 4 ô
+    spacerTd.colSpan = 9;
     spacerTd.style.height = '10px';
-    spacerTd.style.background = '#ffffff';
-    spacerRow.appendChild(spacerTd);
-    table.appendChild(spacerRow);
+    spacerTd.style.background = 'transparent';
+    spacer.appendChild(spacerTd);
+    table.appendChild(spacer);
   }
 
-  // Hiển thị tiêu đề và bảng
   const title = document.createElement('h2');
-  title.innerText = '📋 Danh sách vũ khí và bằng chứng của tất cả người chơi';
+  title.innerText = '📋 Danh sách hung khí & bằng chứng';
   document.body.appendChild(title);
   document.body.appendChild(table);
 });
