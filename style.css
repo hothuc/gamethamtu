@@ -67,3 +67,10 @@ h1, h2, h3 {
   background-color: red !important;
   color: white;
 }
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: blue;
+  margin-left: 10px;
+}

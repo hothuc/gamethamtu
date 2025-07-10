@@ -308,6 +308,7 @@ let playerItems = {}; // playerItems[socket.id] = { evidences: [], weapons: [] }
 let murderSet = {};   // { evidence, weapon, murdererId }
 let hostId = null;  // ai là host
 let murdererConfirmed = false;
+let gmId = null; // Game Master ID
 
 function assignRoles() {
   const ids = Object.keys(players);
@@ -319,8 +320,8 @@ function assignRoles() {
    // Reset
   roles = {};
   playerItems = {};
-  murderSet = { murdererId: null, evidence: null, weapon: null };;
-  let murdererConfirmed = false;
+  murderSet = { murdererId: null, evidence: null, weapon: null };
+  murdererConfirmed = false
   // Tạo danh sách bằng chứng và hung khí ngẫu nhiên
   const shuffledEvidences = evidences.slice().sort(() => 0.5 - Math.random());
   const shuffledWeapons = weapons.slice().sort(() => 0.5 - Math.random());
@@ -383,7 +384,31 @@ io.on('connection', (socket) => {
       io.to(hostId).emit('you-are-host');
     }
 
-    io.emit('player-list', Object.values(players));
+    for (const id in players) {
+  		io.to(id).emit('player-list', {
+    		players,
+    		hostId,
+    		gmId,
+    		myId: id
+  		});
+	}
+  });
+
+  socket.on('set-gamemaster', (selectedId) => {
+  	if (socket.id !== hostId) return; // chỉ host được set
+  	if (!players[selectedId]) return; // kiểm tra người hợp lệ
+
+  	gmId = selectedId;
+
+  // Gửi cập nhật danh sách người chơi cho tất cả
+  	for (const id in players) {
+    	io.to(id).emit('player-list', {
+      	players,
+      	hostId,
+      	gmId,
+      	myId: id
+    	});
+  	}
   });
 
   socket.on('start-game', () => {

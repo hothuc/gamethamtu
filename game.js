@@ -5,16 +5,52 @@ function joinGame() {
   socket.emit('join', name);
 }
 
-socket.on('player-list', (players) => {
-  document.getElementById('players').innerHTML =
-    '<h3>👥 Người chơi:</h3>' + players.map(p => `<div>${p}</div>`).join('');
+socket.on('player-list', ({ players, hostId, gmId, myId }) => {
+  console.log('[DEBUG] Bạn nhận được player-list:', players, hostId, gmId, myId);
+
+  const listDiv = document.getElementById('players');
+  listDiv.innerHTML = '<h3>👥 Người chơi:</h3>';
+
+  Object.entries(players).forEach(([id, name]) => {
+    const playerLine = document.createElement('div');
+    playerLine.style.display = 'flex';
+    playerLine.style.alignItems = 'center';
+    playerLine.style.marginBottom = '4px';
+
+    const nameLabel = document.createElement('span');
+    nameLabel.innerText = name;
+    nameLabel.style.flex = '1';
+    playerLine.appendChild(nameLabel);
+
+    // Nếu bạn là host, bạn thấy checkbox
+    if (myId === hostId ) {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = id === gmId;
+      checkbox.onclick = () => {
+        socket.emit('set-gamemaster', id);
+      };
+      playerLine.appendChild(checkbox);
+    }
+
+    // Nếu người chơi này là GM thì hiển thị biểu tượng
+    if (id === gmId) {
+      const gmLabel = document.createElement('span');
+      gmLabel.innerText = ' 🎲 Quản trò';
+      playerLine.appendChild(gmLabel);
+    }
+
+    listDiv.appendChild(playerLine);
+  });
 });
+
 
 socket.on('role', (role) => {
   document.getElementById('role').innerText = `🎭 Vai trò của bạn: ${role}`;
 });
 
 socket.on('you-are-host', () => {
+  console.log('[DEBUG] Bạn là host, id của bạn:', socket.id);
   const btn = document.createElement('button');
   btn.innerText = '🔔 Bắt đầu ván chơi';
   btn.onclick = () => socket.emit('start-game');
@@ -173,10 +209,10 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
       } else {
         button.classList.add('selected');
         button.style.backgroundColor = 'red';
-      }
-    };
+        }
+      };
+    });
   });
-});
 
 });
 
