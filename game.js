@@ -76,8 +76,8 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
   table.id = 'playerItemGrid';
 
   const title = document.createElement('h2');
-  title.innerText = '📋 Danh sách hung khí & bằng chứng';
-  document.body.appendChild(title);
+  // title.innerText = '📋 Danh sách hung khí & bằng chứng';
+  // document.body.appendChild(title);
   document.body.appendChild(table);
 
   let selectedWeapon = null;
