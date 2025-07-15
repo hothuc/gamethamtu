@@ -15,7 +15,7 @@ const path = require('path');
 
 const evidences = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'evidences.json'), 'utf8'));
 const weapons = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'weapons.json'), 'utf8'));
-const { locations, causeOfDeathTile, eventTiles } = require('./data/data');
+const { locations, causeOfDeathTile, eventTiles } = require('./data/data.js');
 
 
 
