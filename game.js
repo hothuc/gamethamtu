@@ -1,4 +1,6 @@
 const socket = io();
+console.log(locations); // dùng được nếu đã load qua <script>
+console.log(causeOfDeathTile); // dùng được nếu đã load qua <script>
 
 function joinGame() {
   const name = document.getElementById('name').value;
