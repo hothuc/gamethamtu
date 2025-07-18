@@ -8,7 +8,7 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
-let players = {};   // socket.id => name
+let players = {};   // socket.id => names
 
 const fs = require('fs');
 const path = require('path');
@@ -174,7 +174,14 @@ io.on('connection', (socket) => {
       hostId = Object.keys(players)[0] || null;
       if (hostId) io.to(hostId).emit('you-are-host');
     }
-    io.emit('player-list', Object.values(players));
+    for (const id in players) {
+      io.to(id).emit('player-list', {
+        players,
+        hostId,
+        gmId,
+        myId: id
+      });
+    }
   });
 });
 
