@@ -167,6 +167,11 @@ io.on('connection', (socket) => {
   	io.to(socket.id).emit('confirm-button-hide');
   });
 
+  socket.on("selectTile", data => {
+    // Gửi lại cho tất cả người chơi (kể cả người gửi)
+    io.emit("tileSelected", data);
+  });
+
   socket.on('disconnect', () => {
     delete players[socket.id];
     delete roles[socket.id];

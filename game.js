@@ -1,6 +1,4 @@
 const socket = io();
-console.log(locations); // dùng được nếu đã load qua <script>
-console.log(causeOfDeathTile); // dùng được nếu đã load qua <script>
 
 function joinGame() {
   const name = document.getElementById('name').value;
@@ -216,3 +214,82 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
 
 });
 
+window.onload = function () {
+  const container = document.getElementById("cause-container");
+  const locationContainer = document.getElementById("location-container");
+
+  causeOfDeathTile.forEach((cause) => {
+    const btn = document.createElement("button");
+    btn.className = "cell-button";
+    btn.innerText = cause;
+
+    btn.addEventListener("click", () => {
+      const isSelected = !btn.classList.contains("selected");
+      socket.emit("selectTile", {
+      type: "cause", // hoặc "location"
+      value: btn.innerText,
+      selected: isSelected
+      });
+      btn.classList.toggle("selected");
+    });
+    container.appendChild(btn);
+  });
+
+  const flatLocations = locations.flat(); // giả sử danh sách locations là mảng lồng
+  const totalCells = 24;
+  const buttons = [];
+
+  for (let i = 0; i < totalCells; i++) {
+    const btn = document.createElement("button");
+    btn.className = "cell-button";
+
+    if (i < flatLocations.length) {
+      btn.innerText = flatLocations[i];
+    } else {
+      btn.disabled = true; // giữ chỗ nhưng không dùng
+      btn.style.visibility = "hidden"; // hoặc "visible" nếu bạn muốn giữ ô trống nhìn thấy
+    }
+  // Gán index hàng cho từng button
+    btn.dataset.row = Math.floor(i / 6); // mỗi hàng có 6 cột → hàng = index / 6
+
+    // Thêm sự kiện click
+    btn.addEventListener("click", () => {
+      const isSelected = !btn.classList.contains("selected");
+      socket.emit("selectTile", {
+        type: "location", 
+        value: btn.innerText,
+        selected: isSelected
+      });
+      btn.classList.toggle("selected");
+      const selectedRow = btn.dataset.row;
+
+      buttons.forEach(b => {
+        if (b.dataset.row === selectedRow) {
+          b.style.display = "inline-block"; // hiện
+        } else {
+          b.style.display = "none"; // ẩn
+        }
+      });
+    });
+    buttons.push(btn);
+    locationContainer.appendChild(btn);
+  }
+}
+
+socket.on("tileSelected", data => {
+  const { type, value, selected } = data;
+
+  let containerId = type === "cause" ? "cause-container" : "location-container";
+  const container = document.getElementById(containerId);
+  const buttons = container.querySelectorAll("button");
+
+  buttons.forEach(btn => {
+    if (btn.innerText === value) {
+      if (selected) {
+        btn.classList.add("selected");
+      } else {
+        btn.classList.remove("selected");
+      }
+    }
+  });
+});
