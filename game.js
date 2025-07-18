@@ -1,11 +1,15 @@
 const socket = io();
-
+let myId = null;
+let gmId = null;
 function joinGame() {
   const name = document.getElementById('name').value;
   socket.emit('join', name);
 }
 
-socket.on('player-list', ({ players, hostId, gmId, myId }) => {
+socket.on('player-list', ({  players, hostId, gmId: serverGmId, myId: clientId }) => {
+  gmId = serverGmId;
+  myId = clientId;
+  
   const playersDiv = document.getElementById('players');
   playersDiv.innerHTML = '<h3>👥 Người chơi:</h3>';
 
@@ -224,6 +228,7 @@ window.onload = function () {
     btn.innerText = cause;
 
     btn.addEventListener("click", () => {
+      if (myId !== gmId) return;
       const isSelected = !btn.classList.contains("selected");
       socket.emit("selectTile", {
       type: "cause", // hoặc "location"
@@ -254,6 +259,7 @@ window.onload = function () {
 
     // Thêm sự kiện click
     btn.addEventListener("click", () => {
+      if (myId !== gmId) return;
       const isSelected = !btn.classList.contains("selected");
       const selectedRow = btn.dataset.row;
 
