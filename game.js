@@ -255,13 +255,16 @@ window.onload = function () {
     // Thêm sự kiện click
     btn.addEventListener("click", () => {
       const isSelected = !btn.classList.contains("selected");
-      socket.emit("selectTile", {
-        type: "location", 
-        value: btn.innerText,
-        selected: isSelected
-      });
-      btn.classList.toggle("selected");
       const selectedRow = btn.dataset.row;
+
+      socket.emit("selectTile", {
+        type: "location",
+        value: btn.innerText,
+        selected: isSelected,
+        row: selectedRow   // 👈 Gửi thêm chỉ số hàng
+      });
+
+      btn.classList.toggle("selected");
 
       buttons.forEach(b => {
         if (b.dataset.row === selectedRow) {
@@ -277,7 +280,7 @@ window.onload = function () {
 }
 
 socket.on("tileSelected", data => {
-  const { type, value, selected } = data;
+  const { type, value, selected, row } = data;
 
   let containerId = type === "cause" ? "cause-container" : "location-container";
   const container = document.getElementById(containerId);
@@ -291,5 +294,19 @@ socket.on("tileSelected", data => {
         btn.classList.remove("selected");
       }
     }
+
+    if (type === "location") {
+      if (selected) {
+        if (btn.dataset.row === row) {
+          btn.style.display = "inline-block"; // hiện hàng được chọn
+        } else {
+          btn.style.display = "none"; // ẩn hàng khác
+        }
+      } else {
+        // 🔁 Nếu bỏ chọn => hiện lại toàn bộ
+        btn.style.display = "inline-block";
+      }
+    }
   });
 });
+

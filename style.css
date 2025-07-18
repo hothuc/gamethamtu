@@ -83,3 +83,13 @@ input[type="checkbox"] {
   max-width: 720px;
   margin-top: 10px;
 }
+
+.selected {
+  background-color: red;
+  color: white;
+}
+.location-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
