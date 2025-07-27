@@ -25,6 +25,7 @@ let murderSet = {};   // { evidence, weapon, murdererId }
 let hostId = null;  // ai là host
 let murdererConfirmed = false;
 let gmId = null; // Game Master ID
+let myId = null;
 
 function assignRoles() {
   const ids = Object.keys(players);
@@ -171,6 +172,13 @@ io.on('connection', (socket) => {
     // Gửi lại cho tất cả người chơi (kể cả người gửi)
     io.emit("tileSelected", data);
   });
+  socket.on("add-random-event", (event) => {
+    if (socket.id !== hostId) return; // đảm bảo chỉ host mới gửi
+
+    // Gửi event đến tất cả client
+    io.emit("new-event", event);
+  });
+
 
   socket.on('disconnect', () => {
     delete players[socket.id];

@@ -6,7 +6,8 @@ function joinGame() {
   socket.emit('join', name);
 }
 
-socket.on('player-list', ({  players, hostId, gmId: serverGmId, myId: clientId }) => {
+socket.on('player-list', ({  players, hostId: hId, gmId: serverGmId, myId: clientId }) => {
+  hostId = hId;
   gmId = serverGmId;
   myId = clientId;
   
@@ -44,6 +45,12 @@ socket.on('player-list', ({  players, hostId, gmId: serverGmId, myId: clientId }
 
     playersDiv.appendChild(playerLine);
   }
+  const eventBtn = document.getElementById("add-event-btn");
+    if (myId === gmId) {
+      eventBtn.style.display = "inline-block";
+    } else {
+      eventBtn.style.display = "none";
+    }
 });
 
 
@@ -314,5 +321,40 @@ socket.on("tileSelected", data => {
       }
     }
   });
+});
+
+function getRandomEvent() {
+  const index = Math.floor(Math.random() * eventTiles.length);
+  return eventTiles[index];
+}
+socket.on("new-event", (event) => {
+  const container = document.getElementById("event-container");
+  const btn = document.createElement("button");
+  btn.innerText = event;
+  btn.classList.add("event-btn");
+
+  btn.addEventListener("click", () => {
+    if (myId !== gmId) return;
+    btn.classList.toggle("active");
+    socket.emit("toggle-event", event); // nếu bạn muốn đồng bộ click
+  });
+
+  container.appendChild(btn);
+});
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const addEventBtn = document.getElementById("add-event-btn");
+
+  if (addEventBtn) {
+    addEventBtn.addEventListener("click", () => {
+      if (myId !== gmId) return;
+
+      const event = getRandomEvent();
+      socket.emit("add-random-event", event);
+    });
+  } else {
+    console.warn("Không tìm thấy nút Thêm Sự Kiện!");
+  }
 });
 
