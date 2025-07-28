@@ -174,8 +174,10 @@ io.on('connection', (socket) => {
     io.emit("tileSelected", data);
   });
   socket.on("add-random-event", (event) => {
+    const rowId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
     // Gửi event đến tất cả client
-    io.emit("new-event", event);
+    console.log(event,rowId);
+    io.emit("new-event", {event,rowId});
   });
 
   socket.on("toggle-event", (eventItem) => {
@@ -189,10 +191,9 @@ io.on('connection', (socket) => {
   });
 
 
-  socket.on("remove-event-row", (rowIndex) => {
-    if (socket.id === gmId) {
-      io.emit("remove-event-row", rowIndex); // Gửi cho tất cả
-    }
+  socket.on("remove-event-row", (rowId) => {
+    console.log('đã gử mã xóa:',rowId);
+    io.emit("remove-event-row", rowId); // Gửi cho tất cả
   });
 
   socket.on('disconnect', () => {

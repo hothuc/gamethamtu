@@ -328,14 +328,14 @@ function getRandomEvent() {
   return eventTiles[index];
 }
 
-socket.on("new-event", (eventArray) => {
+socket.on("new-event", ({event: eventArray,rowId}) => {
   const container = document.getElementById("event-container");
-
+  console.log(eventArray,rowId);
   const groupSize = 8;
   for (let i = 0; i < eventArray.length; i += groupSize) {
     const rowDiv = document.createElement("div");
     rowDiv.classList.add("event-row");
-    rowDiv.dataset.rowIndex = i / groupSize; // Đánh dấu index hàng
+    rowDiv.dataset.rowId = rowId; // Đánh dấu index hàng
 
     const group = eventArray.slice(i, i + groupSize);
     
@@ -346,7 +346,7 @@ socket.on("new-event", (eventArray) => {
 
       btn.addEventListener("click", () => {
         if (myId !== gmId) return;
-        const eventName = btn.childNodes[0].nodeValue.trim();
+        btn.classList.toggle("selected");
         socket.emit("toggle-event", eventItem);
       });
 
@@ -360,8 +360,9 @@ socket.on("new-event", (eventArray) => {
       removeBtn.classList.add("remove-row-btn");
 
       removeBtn.addEventListener("click", () => {
-        const rowIndex = parseInt(rowDiv.dataset.rowIndex);
-        socket.emit("remove-event-row", rowIndex); // Gửi index dòng cần xóa
+        console.log('đã nhấn X');
+        socket.emit("remove-event-row", rowId);
+        console.log('dã gửi') // Gửi index dòng cần xóa
       });
 
       rowDiv.appendChild(removeBtn);
@@ -371,14 +372,18 @@ socket.on("new-event", (eventArray) => {
   }
 });
 
-socket.on("remove-event-row", (rowIndex) => {
-  const container = document.getElementById("event-container");
-  const rows = container.getElementsByClassName("event-row");
-
-  if (rows[rowIndex]) {
-    container.removeChild(rows[rowIndex]);
-  }
+socket.on("remove-event-row", (rowId) => {
+  console.log("Nhận được yêu cầu xóa dòng:", rowId);
+  const allRows = document.querySelectorAll(".event-row");
+  allRows.forEach(row => {
+    console.log("So sánh:", row.dataset.rowId, "===", rowId);
+    if (row.dataset.rowId === rowId) {
+      console.log("Xóa dòng:", rowId);
+      row.remove();
+    }
+  });
 });
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const addEventBtn = document.getElementById("add-event-btn");
@@ -386,7 +391,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (myId !== gmId) return;
 
     const event = getRandomEvent();
-    console.log(event);
     socket.emit("add-random-event", event);
   });
 });
