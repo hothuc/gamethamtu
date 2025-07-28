@@ -94,16 +94,6 @@ input[type="checkbox"] {
   margin-bottom: 6px;
 }
 
-.event-btn {
-  padding: 8px 16px;
-  margin: 4px;
-  font-size: 14px;
-  border: 1px solid #999;
-  border-radius: 5px;
-  background-color: #fff;
-  transition: background-color 0.2s;
-}
-
 .event-btn:hover {
   background-color: #ddd;
 }
@@ -113,10 +103,25 @@ input[type="checkbox"] {
   color: white;
 }
 
-.event-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr); /* 8 cột */
+.event-btn {
+  padding: 6px 10px;
+  background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.remove-row-btn {
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.event-row {
+  display: flex;
   gap: 10px;
-  max-width: 720px;
-  margin-top: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: wrap; /* tránh tràn dòng nếu thiếu */
 }

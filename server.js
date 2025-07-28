@@ -26,6 +26,7 @@ let hostId = null;  // ai là host
 let murdererConfirmed = false;
 let gmId = null; // Game Master ID
 let myId = null;
+let selectedEvents = new Set();
 
 function assignRoles() {
   const ids = Object.keys(players);
@@ -177,6 +178,22 @@ io.on('connection', (socket) => {
     io.emit("new-event", event);
   });
 
+  socket.on("toggle-event", (eventItem) => {
+    if (selectedEvents.has(eventItem)) {
+      selectedEvents.delete(eventItem);
+    } else {
+      selectedEvents.add(eventItem);
+    }
+
+    io.emit("update-event-selection", Array.from(selectedEvents));
+  });
+
+
+  socket.on("remove-event-row", (rowIndex) => {
+    if (socket.id === gmId) {
+      io.emit("remove-event-row", rowIndex); // Gửi cho tất cả
+    }
+  });
 
   socket.on('disconnect', () => {
     delete players[socket.id];

@@ -327,26 +327,58 @@ function getRandomEvent() {
   const index = Math.floor(Math.random() * eventTiles.length);
   return eventTiles[index];
 }
+
 socket.on("new-event", (eventArray) => {
   const container = document.getElementById("event-container");
 
-  eventArray.forEach((eventItem) => {
-    const btn = document.createElement("button");
-    btn.innerText = eventItem;
-    btn.classList.add("event-btn");
+  const groupSize = 8;
+  for (let i = 0; i < eventArray.length; i += groupSize) {
+    const rowDiv = document.createElement("div");
+    rowDiv.classList.add("event-row");
+    rowDiv.dataset.rowIndex = i / groupSize; // Đánh dấu index hàng
 
-    btn.addEventListener("click", () => {
-      if (myId !== gmId) return;
-      btn.classList.toggle("selected");
+    const group = eventArray.slice(i, i + groupSize);
+    
+    group.forEach((eventItem) => {
+      const btn = document.createElement("button");
+      btn.innerText = eventItem;
+      btn.classList.add("event-btn");
 
-      // Gửi dữ liệu đã click đến server nếu muốn đồng bộ
-      socket.emit("toggle-event", eventItem);
+      btn.addEventListener("click", () => {
+        if (myId !== gmId) return;
+        const eventName = btn.childNodes[0].nodeValue.trim();
+        socket.emit("toggle-event", eventItem);
+      });
+
+      rowDiv.appendChild(btn);
     });
 
-    container.appendChild(btn);
-  });
+    // Thêm nút X để xóa hàng
+    if (myId === gmId) {
+      const removeBtn = document.createElement("button");
+      removeBtn.innerText = "X";
+      removeBtn.classList.add("remove-row-btn");
+
+      removeBtn.addEventListener("click", () => {
+        const rowIndex = parseInt(rowDiv.dataset.rowIndex);
+        socket.emit("remove-event-row", rowIndex); // Gửi index dòng cần xóa
+      });
+
+      rowDiv.appendChild(removeBtn);
+    }
+
+    container.appendChild(rowDiv);
+  }
 });
 
+socket.on("remove-event-row", (rowIndex) => {
+  const container = document.getElementById("event-container");
+  const rows = container.getElementsByClassName("event-row");
+
+  if (rows[rowIndex]) {
+    container.removeChild(rows[rowIndex]);
+  }
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   const addEventBtn = document.getElementById("add-event-btn");
@@ -364,6 +396,18 @@ socket.on("toggle-event", (eventItem) => {
   buttons.forEach((btn) => {
     if (btn.innerText === eventItem) {
       btn.classList.toggle("selected");
+    }
+  });
+});
+
+socket.on("update-event-selection", (selectedEvents) => {
+  const buttons = document.querySelectorAll(".event-btn");
+
+  buttons.forEach((btn) => {
+    if (selectedEvents.includes(btn.innerText)) {
+      btn.classList.add("selected");
+    } else {
+      btn.classList.remove("selected");
     }
   });
 });
