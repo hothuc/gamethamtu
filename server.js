@@ -173,8 +173,6 @@ io.on('connection', (socket) => {
     io.emit("tileSelected", data);
   });
   socket.on("add-random-event", (event) => {
-    if (socket.id !== hostId) return; // đảm bảo chỉ host mới gửi
-
     // Gửi event đến tất cả client
     io.emit("new-event", event);
   });

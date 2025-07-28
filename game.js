@@ -327,34 +327,43 @@ function getRandomEvent() {
   const index = Math.floor(Math.random() * eventTiles.length);
   return eventTiles[index];
 }
-socket.on("new-event", (event) => {
+socket.on("new-event", (eventArray) => {
   const container = document.getElementById("event-container");
-  const btn = document.createElement("button");
-  btn.innerText = event;
-  btn.classList.add("event-btn");
 
-  btn.addEventListener("click", () => {
-    if (myId !== gmId) return;
-    btn.classList.toggle("active");
-    socket.emit("toggle-event", event); // nếu bạn muốn đồng bộ click
+  eventArray.forEach((eventItem) => {
+    const btn = document.createElement("button");
+    btn.innerText = eventItem;
+    btn.classList.add("event-btn");
+
+    btn.addEventListener("click", () => {
+      if (myId !== gmId) return;
+      btn.classList.toggle("selected");
+
+      // Gửi dữ liệu đã click đến server nếu muốn đồng bộ
+      socket.emit("toggle-event", eventItem);
+    });
+
+    container.appendChild(btn);
   });
-
-  container.appendChild(btn);
 });
 
 
 document.addEventListener("DOMContentLoaded", () => {
   const addEventBtn = document.getElementById("add-event-btn");
+  addEventBtn.addEventListener("click", () => {
+    if (myId !== gmId) return;
 
-  if (addEventBtn) {
-    addEventBtn.addEventListener("click", () => {
-      if (myId !== gmId) return;
-
-      const event = getRandomEvent();
-      socket.emit("add-random-event", event);
-    });
-  } else {
-    console.warn("Không tìm thấy nút Thêm Sự Kiện!");
-  }
+    const event = getRandomEvent();
+    console.log(event);
+    socket.emit("add-random-event", event);
+  });
 });
 
+socket.on("toggle-event", (eventItem) => {
+  const buttons = document.querySelectorAll("#event-container .event-btn");
+  buttons.forEach((btn) => {
+    if (btn.innerText === eventItem) {
+      btn.classList.toggle("selected");
+    }
+  });
+});
