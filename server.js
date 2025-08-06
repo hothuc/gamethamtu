@@ -16,7 +16,7 @@ const path = require('path');
 const evidences = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'evidences.json'), 'utf8'));
 const weapons = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'weapons.json'), 'utf8'));
 const { locations, causeOfDeathTile, eventTiles } = require('./data/data.js');
-
+const chatHistoryPerPlayer = {};
 
 
 let roles = {};     // socket.id => role
@@ -27,6 +27,20 @@ let murdererConfirmed = false;
 let gmId = null; // Game Master ID
 let myId = null;
 let selectedEvents = new Set();
+let chatHistory = [];
+
+function addSystemMessage(content) {
+  const message = {
+    sender: "Hệ thống",
+    content: content,
+    timestamp: new Date().toLocaleTimeString()
+  };
+
+  chatHistory.push(message);
+  io.emit("chat-message", message);
+  console.log(`System: ${content}`);
+}
+
 
 function assignRoles() {
   const ids = Object.keys(players);
@@ -126,6 +140,7 @@ io.on('connection', (socket) => {
   	if (!players[selectedId]) return; // kiểm tra người hợp lệ
 
   	gmId = selectedId;
+    io.to(gmId).emit("you-are-gamemaster");
 
   // Gửi cập nhật danh sách người chơi cho tất cả
   	for (const id in players) {
@@ -162,7 +177,13 @@ io.on('connection', (socket) => {
   	murdererConfirmed = true;
 
   	// Gửi thông báo tới tất cả người chơi
-  	io.emit('message', '🔒 Murderer đã chọn xong bằng chứng và hung khí!');
+  	addSystemMessage('🔒 Murderer đã chọn xong bằng chứng và hung khí!');
+     const murdermessage = 
+     `Hung thủ (${players[murderSet.murdererId]}) đã chọn:
+    - Vũ khí: ${murderSet.weapon}
+    - Bằng chứng: ${murderSet.evidence}`;
+    io.to(gmId).emit("private-message", { message: murdermessage });
+
 	//cho tuong tac vao bang
 	io.emit('enable-interaction');
 	// Thông báo riêng để ẩn nút xác nhận

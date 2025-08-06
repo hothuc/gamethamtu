@@ -1,6 +1,8 @@
 const socket = io();
 let myId = null;
 let gmId = null;
+let chatHistory = [];
+let gmChatHistory = [];
 function joinGame() {
   const name = document.getElementById('name').value;
   socket.emit('join', name);
@@ -387,6 +389,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const event = getRandomEvent();
     socket.emit("add-random-event", event);
   });
+  socket.on("you-are-gamemaster", () => {
+    console.log("Bạn là Quản trò (GM)!");
+    document.getElementById("gm-chat-log").style.display = "block";
+  });
 });
 
 socket.on("toggle-event", (eventItem) => {
@@ -409,3 +415,44 @@ socket.on("update-event-selection", (selectedEvents) => {
     }
   });
 });
+
+
+function renderChatHistory() {
+  const chatContainer = document.getElementById("chatLog");
+  chatContainer.innerHTML = ""; // clear cũ
+
+  chatHistory.forEach(msg => {
+    const div = document.createElement("div");
+    div.classList.add("chat-message");
+    div.textContent = `[${msg.timestamp}] ${msg.sender}: ${msg.content}`;
+    chatContainer.appendChild(div);
+  });
+
+  // Tự động cuộn xuống dòng mới nhất
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// Gọi khi có chat mới
+function addChatMessage(sender, content) {
+  const message = {
+    sender,
+    content,
+    timestamp: new Date().toLocaleTimeString()
+  };
+  chatHistory.push(message);
+  renderChatHistory();
+}
+
+socket.on("chat-message", ({ sender, content }) => {
+  addChatMessage(sender, content);
+});
+
+socket.on("private-message", ({ message }) => {
+  const chatBox = document.getElementById("gm-chat-log");
+  const entry = document.createElement("div");
+  entry.innerHTML = message.replace(/\n/g, "<br>");
+  chatBox.appendChild(entry);
+});
+
+
+
