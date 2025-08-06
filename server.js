@@ -176,7 +176,6 @@ io.on('connection', (socket) => {
   socket.on("add-random-event", (event) => {
     const rowId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
     // Gửi event đến tất cả client
-    console.log(event,rowId);
     io.emit("new-event", {event,rowId});
   });
 
@@ -192,7 +191,6 @@ io.on('connection', (socket) => {
 
 
   socket.on("remove-event-row", (rowId) => {
-    console.log('đã gử mã xóa:',rowId);
     io.emit("remove-event-row", rowId); // Gửi cho tất cả
   });
 

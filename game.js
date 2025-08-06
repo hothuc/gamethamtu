@@ -330,7 +330,6 @@ function getRandomEvent() {
 
 socket.on("new-event", ({event: eventArray,rowId}) => {
   const container = document.getElementById("event-container");
-  console.log(eventArray,rowId);
   const groupSize = 8;
   for (let i = 0; i < eventArray.length; i += groupSize) {
     const rowDiv = document.createElement("div");
@@ -360,9 +359,7 @@ socket.on("new-event", ({event: eventArray,rowId}) => {
       removeBtn.classList.add("remove-row-btn");
 
       removeBtn.addEventListener("click", () => {
-        console.log('đã nhấn X');
-        socket.emit("remove-event-row", rowId);
-        console.log('dã gửi') // Gửi index dòng cần xóa
+        socket.emit("remove-event-row", rowId); // Gửi index dòng cần xóa
       });
 
       rowDiv.appendChild(removeBtn);
@@ -373,12 +370,9 @@ socket.on("new-event", ({event: eventArray,rowId}) => {
 });
 
 socket.on("remove-event-row", (rowId) => {
-  console.log("Nhận được yêu cầu xóa dòng:", rowId);
   const allRows = document.querySelectorAll(".event-row");
   allRows.forEach(row => {
-    console.log("So sánh:", row.dataset.rowId, "===", rowId);
     if (row.dataset.rowId === rowId) {
-      console.log("Xóa dòng:", rowId);
       row.remove();
     }
   });
