@@ -210,20 +210,67 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
     }
   }
   socket.on('enable-interaction', () => {
-  document.querySelectorAll('.interactive-btn').forEach(button => {
-    const originalColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
+    document.querySelectorAll('.interactive-btn').forEach(button => {
+      const originalColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
 
-    button.onclick = () => {
-      if (button.classList.contains('selected')) {
-        button.classList.remove('selected');
-        button.style.backgroundColor = originalColor;
-      } else {
-        button.classList.add('selected');
-        button.style.backgroundColor = 'red';
+      button.onclick = () => {
+        // Nếu là nút vũ khí
+        if (button.dataset.type === 'weapon') {
+          // Bỏ chọn vũ khí trước đó
+          document.querySelectorAll('.interactive-btn[data-type="weapon"]').forEach(btn => {
+            btn.classList.remove('selected');
+            btn.style.backgroundColor = '#00FFFF';
+          });
+          // Chọn vũ khí mới
+          button.classList.add('selected');
+          button.style.backgroundColor = 'red';
+          reportWeapon = button.innerText;
+        }
+
+        // Nếu là nút bằng chứng
+        if (button.dataset.type === 'evidence') {
+          // Bỏ chọn bằng chứng trước đó
+          document.querySelectorAll('.interactive-btn[data-type="evidence"]').forEach(btn => {
+            btn.classList.remove('selected');
+            btn.style.backgroundColor = '#FFD700';
+          });
+          // Chọn bằng chứng mới
+          button.classList.add('selected');
+          button.style.backgroundColor = 'red';
+          reportEvidence = button.innerText;
         }
       };
     });
+
+    // Nút tố cáo
+    const reportBtn = document.getElementById('report-btn');
+    reportBtn.onclick = () => {
+      if (!reportWeapon || !reportEvidence) {
+        alert('Bạn phải chọn 1 hung khí và 1 bằng chứng trước khi tố cáo!');
+        return;
+      }
+
+      // Gửi dữ liệu tố cáo lên server
+      socket.emit('update-report', {
+        weapon: reportWeapon,
+        evidence: reportEvidence
+      });
+
+      // Sau khi tố cáo thì disable nút tố cáo để không spam
+      reportBtn.disabled = true;
+    };
   });
+
+// Khi server reset game -> reset lại nút tố cáo
+socket.on('reset-game', () => {
+  document.getElementById('report-btn').disabled = false;
+  selectedWeapon = null;
+  selectedEvidence = null;
+  document.querySelectorAll('.interactive-btn').forEach(button => {
+    button.classList.remove('selected');
+    button.style.backgroundColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
+  });
+});
 
 });
 
@@ -323,6 +370,10 @@ socket.on("tileSelected", data => {
       }
     }
   });
+  const reportButton = document.getElementById("report-button");
+  if (!gmId) {
+    reportButton.style.display = "inline-block";
+  }
 });
 
 function getRandomEvent() {
@@ -393,6 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Bạn là Quản trò (GM)!");
     document.getElementById("gm-chat-log").style.display = "block";
   });
+  
 });
 
 socket.on("toggle-event", (eventItem) => {
@@ -454,5 +506,27 @@ socket.on("private-message", ({ message }) => {
   chatBox.appendChild(entry);
 });
 
+// const reportButton = document.getElementById("report-button");
 
+// reportButton.addEventListener("click", () => {
+//   const confirm = window.confirm("Bạn có chắc muốn tố cáo người chơi này?");
+//   if (confirm) {
+//     // Giả sử bạn muốn gửi report đến server
+//     socket.emit("report-player", { reporterId: playerId });
+//     reportButton.disabled = true;
+//     reportButton.textContent = "Đã tố cáo"; // Cập nhật giao diện
+//     // Thông báo lại người chơi
+//     alert("Đã gửi tố cáo đến quản trò.");
+//   }
+// });
+
+// socket.on("new-round", () => {
+//   const reportButton = document.getElementById("report-button");
+//   if (!isGM && reportButton) {
+//     reportButton.disabled = false;
+//     reportButton.textContent = "🚨 Tố cáo";
+//     reportButton.style.backgroundColor = ""; // Reset màu nếu bạn có đổi màu
+//     reportButton.style.cursor = "pointer";
+//   }
+// });
 

@@ -156,6 +156,12 @@ io.on('connection', (socket) => {
   socket.on('start-game', () => {
     if (socket.id !== hostId) return;
     console.log('🔔 Host bắt đầu ván chơi');
+    io.emit("new-round");
+
+    socket.on('start-new-game', () => {
+      io.emit('reset-game');
+    });
+
     // Lấy ngẫu nhiên 4 bằng chứng và 4 hung khí
     const selectedEvidences = evidences.sort(() => 0.5 - Math.random()).slice(0, 4);
     const selectedWeapons = weapons.sort(() => 0.5 - Math.random()).slice(0, 4);
@@ -210,6 +216,17 @@ io.on('connection', (socket) => {
     io.emit("update-event-selection", Array.from(selectedEvents));
   });
 
+  socket.on('update-report', (data) => {
+    console.log(`Người chơi ${socket.id} đã tố cáo với:`);
+    console.log(`- Hung khí: ${data.weapon}`);
+    console.log(`- Bằng chứng: ${data.evidence}`);
+
+    // Gửi thông báo tố cáo đến tất cả người chơi
+    console.log(`Người chơi ${players[socket.id]}`);
+    reportMessage = `Người chơi ${players[socket.id]} tố cáo: hung khí ${data.weapon}, bằng chứng ${data.evidence}`;
+    console.log(reportMessage);
+    addSystemMessage(reportMessage);
+  });
 
   socket.on("remove-event-row", (rowId) => {
     io.emit("remove-event-row", rowId); // Gửi cho tất cả
