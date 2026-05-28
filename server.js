@@ -28,6 +28,7 @@ let gmId = null; // Game Master ID
 let myId = null;
 let selectedEvents = new Set();
 let chatHistory = [];
+let awaitingMurdererShot = false;
 
 function addSystemMessage(content) {
   const message = {
@@ -52,11 +53,16 @@ function assignRoles() {
    // Reset
   roles = {};
   playerItems = {};
-  murderSet = { murdererId: null, evidence: null, weapon: null };
-  murdererConfirmed = false
+  murderSet = { murdererId: null, witnessId: null, evidence: null, weapon: null };
+  murdererConfirmed = false;
+  awaitingMurdererShot = false;
 
   // Loại GM khỏi danh sách phân vai
   const assignableIds = ids.filter(id => id !== gmId);
+  if (assignableIds.length < 2) {
+    io.to(hostId).emit('message', 'Cần tối thiểu 2 người được phân vai để có Sát nhân và Nhân chứng!');
+    return;
+  }
 
   // Tạo danh sách bằng chứng và hung khí ngẫu nhiên
   const shuffledEvidences = evidences.slice().sort(() => 0.5 - Math.random());
@@ -76,9 +82,13 @@ function assignRoles() {
   roles[murdererId] = 'Murderer';
   murderSet.murdererId = murdererId;
 
-  // Các người chơi còn lại là Investigator
-  assignableIds.forEach(id => {
-    if (id !== murdererId) roles[id] = 'Investigator';
+  // Bắt buộc chọn 1 Nhân chứng, những người khác là Investigator
+  const nonMurdererIds = assignableIds.filter((id) => id !== murdererId);
+  const witnessId = nonMurdererIds[Math.floor(Math.random() * nonMurdererIds.length)];
+  roles[witnessId] = 'Witness';
+  murderSet.witnessId = witnessId;
+  nonMurdererIds.forEach((id) => {
+    if (id !== witnessId) roles[id] = 'Investigator';
   });
 
   // Gửi dữ liệu riêng biệt cho từng người chơi
@@ -101,12 +111,16 @@ function assignRoles() {
   items: playerItems[murdererId]
   });
 
+  io.to(witnessId).emit('witness-info', {
+    murdererId,
+    murdererName: players[murdererId]
+  });
+
   // Gửi toàn bộ danh sách hung khí & bằng chứng của từng người cho tất cả
   ids.forEach(id => {
 	io.to(id).emit('all-player-items', {
       allItems: playerItems,
       playerNames: players,
-      murdererId: murdererId,
       myId: id
   	});
   });
@@ -115,6 +129,12 @@ function assignRoles() {
 
 io.on('connection', (socket) => {
   console.log('🟢 Kết nối:', socket.id);
+
+  socket.on('start-new-game', () => {
+    if (socket.id !== hostId) return;
+    awaitingMurdererShot = false;
+    io.emit('reset-game');
+  });
 
   socket.on('join', (name) => {
     players[socket.id] = name;
@@ -156,15 +176,13 @@ io.on('connection', (socket) => {
   socket.on('start-game', () => {
     if (socket.id !== hostId) return;
     console.log('🔔 Host bắt đầu ván chơi');
+    awaitingMurdererShot = false;
     io.emit("new-round");
-
-    socket.on('start-new-game', () => {
-      io.emit('reset-game');
-    });
+    io.emit('reset-game');
 
     // Lấy ngẫu nhiên 4 bằng chứng và 4 hung khí
-    const selectedEvidences = evidences.sort(() => 0.5 - Math.random()).slice(0, 4);
-    const selectedWeapons = weapons.sort(() => 0.5 - Math.random()).slice(0, 4);
+    const selectedEvidences = evidences.slice().sort(() => 0.5 - Math.random()).slice(0, 4);
+    const selectedWeapons = weapons.slice().sort(() => 0.5 - Math.random()).slice(0, 4);
 
     // Gửi xuống tất cả client để hiển thị
     io.emit('show-evidence-weapon', {
@@ -217,15 +235,68 @@ io.on('connection', (socket) => {
   });
 
   socket.on('update-report', (data) => {
+    if (awaitingMurdererShot) return;
+    if (!murdererConfirmed) return;
+
     console.log(`Người chơi ${socket.id} đã tố cáo với:`);
     console.log(`- Hung khí: ${data.weapon}`);
     console.log(`- Bằng chứng: ${data.evidence}`);
 
     // Gửi thông báo tố cáo đến tất cả người chơi
     console.log(`Người chơi ${players[socket.id]}`);
-    reportMessage = `Người chơi ${players[socket.id]} tố cáo: hung khí ${data.weapon}, bằng chứng ${data.evidence}`;
+    const reportMessage = `Người chơi ${players[socket.id]} tố cáo: hung khí ${data.weapon}, bằng chứng ${data.evidence}`;
     console.log(reportMessage);
     addSystemMessage(reportMessage);
+
+    const isCorrectAccusation =
+      data.weapon === murderSet.weapon && data.evidence === murderSet.evidence;
+
+    if (!isCorrectAccusation) return;
+
+    awaitingMurdererShot = true;
+    addSystemMessage('🎯 Tố cáo chính xác! Trò chơi tạm kết thúc. Hung thủ phải chọn 1 người để bắn.');
+
+    const shootableTargets = Object.keys(players)
+      .filter((id) => {
+        if (id === murderSet.murdererId) return false;
+        if (id === gmId) return false;
+        const role = roles[id];
+        return role === 'Witness' || role === 'Investigator';
+      })
+      .map((id) => ({ id, name: players[id], role: roles[id] }));
+
+    io.to(murderSet.murdererId).emit('murderer-must-shoot', {
+      targets: shootableTargets
+    });
+    io.emit('game-ended-awaiting-shot');
+  });
+
+  socket.on('murderer-shoot', ({ targetId }) => {
+    if (!awaitingMurdererShot) return;
+    if (socket.id !== murderSet.murdererId) return;
+    if (!players[targetId]) return;
+    if (targetId === murderSet.murdererId) return;
+
+    awaitingMurdererShot = false;
+    const shooterName = players[socket.id] || 'Hung thủ';
+    const targetName = players[targetId] || 'Người chơi';
+    const didHitWitness =
+      targetId === murderSet.witnessId || roles[targetId] === 'Witness';
+    const winner = didHitWitness ? 'Murderer' : 'Human';
+    const winnerMessage = didHitWitness
+      ? '💀 Sát nhân bắn trúng Nhân chứng. Sát nhân thắng!'
+      : '🛡️ Sát nhân bắn trượt Nhân chứng. Phe người chơi thắng!';
+    addSystemMessage(`💥 ${shooterName} đã bắn ${targetName}.`);
+    addSystemMessage(winnerMessage);
+
+    io.emit('murderer-shot-result', {
+      shooterId: socket.id,
+      shooterName,
+      targetId,
+      targetName,
+      didHitWitness,
+      winner
+    });
   });
 
   socket.on("remove-event-row", (rowId) => {

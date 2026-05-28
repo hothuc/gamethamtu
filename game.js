@@ -1,12 +1,51 @@
 const socket = io();
 let myId = null;
 let gmId = null;
+let hostId = null;
 let chatHistory = [];
 let gmChatHistory = [];
+let reportWeapon = null;
+let reportEvidence = null;
+let selectedWeapon = null;
+let selectedEvidence = null;
+let currentRole = null;
+
+function clearGmInternalChat() {
+  gmChatHistory = [];
+  const chatBox = document.getElementById('gm-chat-log');
+  if (!chatBox) return;
+  chatBox.innerHTML = '<h4>Lịch sử nội bộ</h4>';
+}
+
+function resetReportUI() {
+  const reportBtn = document.getElementById('report-btn');
+  if (reportBtn) reportBtn.disabled = false;
+  reportWeapon = null;
+  reportEvidence = null;
+  selectedWeapon = null;
+  selectedEvidence = null;
+  document.querySelectorAll('.interactive-btn').forEach((button) => {
+    button.classList.remove('selected');
+    button.style.backgroundColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
+  });
+  const shootPanel = document.getElementById('shoot-panel');
+  if (shootPanel) shootPanel.remove();
+  const oldConfirmBtn = document.getElementById('confirmBtn');
+  if (oldConfirmBtn) oldConfirmBtn.remove();
+  clearGmInternalChat();
+}
+
 function joinGame() {
   const name = document.getElementById('name').value;
   socket.emit('join', name);
 }
+
+function startGame() {
+  socket.emit('start-game');
+}
+
+window.joinGame = joinGame;
+window.startGame = startGame;
 
 socket.on('player-list', ({  players, hostId: hId, gmId: serverGmId, myId: clientId }) => {
   hostId = hId;
@@ -58,6 +97,7 @@ socket.on('player-list', ({  players, hostId: hId, gmId: serverGmId, myId: clien
 
 
 socket.on('role', (role) => {
+  currentRole = role;
   document.getElementById('role').innerText = `🎭 Vai trò của bạn: ${role}`;
 });
 
@@ -81,7 +121,12 @@ socket.on('confirm-button-hide', () => {
   if (btn) btn.remove();
 });
 
-socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
+socket.on('new-round', resetReportUI);
+socket.on('reset-game', resetReportUI);
+
+socket.on('all-player-items', ({ allItems, playerNames, myId: payloadMyId }) => {
+  resetReportUI();
+
   const oldTable = document.getElementById('playerItemGrid');
   if (oldTable) oldTable.remove();
 
@@ -93,8 +138,8 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
   // document.body.appendChild(title);
   document.body.appendChild(table);
 
-  let selectedWeapon = null;
-  let selectedEvidence = null;
+  selectedWeapon = null;
+  selectedEvidence = null;
 
   for (const id in allItems) {
     const items = allItems[id];
@@ -120,7 +165,7 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
 
       const originalColor = btn.style.backgroundColor;
 
-      if (myId === murdererId && myId === id) {
+      if (currentRole === 'Murderer' && (myId === id || payloadMyId === id)) {
         btn.onclick = () => {
           if (btn.classList.contains('selected')) {
             btn.classList.remove('selected');
@@ -155,7 +200,7 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
 
       const originalColor = btn.style.backgroundColor;
 
-      if (myId === murdererId && myId === id) {
+      if (currentRole === 'Murderer' && (myId === id || payloadMyId === id)) {
         btn.onclick = () => {
           if (btn.classList.contains('selected')) {
             btn.classList.remove('selected');
@@ -187,7 +232,7 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
   }
 
   // Nếu là Murderer thì thêm nút xác nhận
-  if (myId === murdererId) {
+  if (currentRole === 'Murderer') {
     const confirmBtn = document.createElement('button');
     confirmBtn.id = 'confirmBtn';
     confirmBtn.innerText = '✅ Xác nhận gây án';
@@ -201,6 +246,12 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
       confirmBtn.remove();
     };
     document.body.appendChild(confirmBtn);
+  } else {
+    console.log('[debug] confirmBtn hidden because not murderer', {
+      globalMyId: myId,
+      payloadMyId,
+      currentRole
+    });
   }
 
   function updateConfirmBtn() {
@@ -209,69 +260,6 @@ socket.on('all-player-items', ({ allItems, playerNames, murdererId, myId }) => {
       confirmBtn.disabled = !(selectedWeapon && selectedEvidence);
     }
   }
-  socket.on('enable-interaction', () => {
-    document.querySelectorAll('.interactive-btn').forEach(button => {
-      const originalColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
-
-      button.onclick = () => {
-        // Nếu là nút vũ khí
-        if (button.dataset.type === 'weapon') {
-          // Bỏ chọn vũ khí trước đó
-          document.querySelectorAll('.interactive-btn[data-type="weapon"]').forEach(btn => {
-            btn.classList.remove('selected');
-            btn.style.backgroundColor = '#00FFFF';
-          });
-          // Chọn vũ khí mới
-          button.classList.add('selected');
-          button.style.backgroundColor = 'red';
-          reportWeapon = button.innerText;
-        }
-
-        // Nếu là nút bằng chứng
-        if (button.dataset.type === 'evidence') {
-          // Bỏ chọn bằng chứng trước đó
-          document.querySelectorAll('.interactive-btn[data-type="evidence"]').forEach(btn => {
-            btn.classList.remove('selected');
-            btn.style.backgroundColor = '#FFD700';
-          });
-          // Chọn bằng chứng mới
-          button.classList.add('selected');
-          button.style.backgroundColor = 'red';
-          reportEvidence = button.innerText;
-        }
-      };
-    });
-
-    // Nút tố cáo
-    const reportBtn = document.getElementById('report-btn');
-    reportBtn.onclick = () => {
-      if (!reportWeapon || !reportEvidence) {
-        alert('Bạn phải chọn 1 hung khí và 1 bằng chứng trước khi tố cáo!');
-        return;
-      }
-
-      // Gửi dữ liệu tố cáo lên server
-      socket.emit('update-report', {
-        weapon: reportWeapon,
-        evidence: reportEvidence
-      });
-
-      // Sau khi tố cáo thì disable nút tố cáo để không spam
-      reportBtn.disabled = true;
-    };
-  });
-
-// Khi server reset game -> reset lại nút tố cáo
-socket.on('reset-game', () => {
-  document.getElementById('report-btn').disabled = false;
-  selectedWeapon = null;
-  selectedEvidence = null;
-  document.querySelectorAll('.interactive-btn').forEach(button => {
-    button.classList.remove('selected');
-    button.style.backgroundColor = button.dataset.type === 'weapon' ? '#00FFFF' : '#FFD700';
-  });
-});
-
 });
 
 window.onload = function () {
@@ -370,10 +358,39 @@ socket.on("tileSelected", data => {
       }
     }
   });
-  const reportButton = document.getElementById("report-button");
-  if (!gmId) {
+  const reportButton = document.getElementById("report-btn");
+  if (reportButton && myId !== gmId) {
     reportButton.style.display = "inline-block";
   }
+});
+
+socket.on('enable-interaction', () => {
+  reportWeapon = null;
+  reportEvidence = null;
+
+  document.querySelectorAll('.interactive-btn').forEach(button => {
+    button.onclick = () => {
+      if (button.dataset.type === 'weapon') {
+        document.querySelectorAll('.interactive-btn[data-type="weapon"]').forEach(btn => {
+          btn.classList.remove('selected');
+          btn.style.backgroundColor = '#00FFFF';
+        });
+        button.classList.add('selected');
+        button.style.backgroundColor = 'red';
+        reportWeapon = button.innerText;
+      }
+
+      if (button.dataset.type === 'evidence') {
+        document.querySelectorAll('.interactive-btn[data-type="evidence"]').forEach(btn => {
+          btn.classList.remove('selected');
+          btn.style.backgroundColor = '#FFD700';
+        });
+        button.classList.add('selected');
+        button.style.backgroundColor = 'red';
+        reportEvidence = button.innerText;
+      }
+    };
+  });
 });
 
 function getRandomEvent() {
@@ -434,11 +451,25 @@ socket.on("remove-event-row", (rowId) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   const addEventBtn = document.getElementById("add-event-btn");
+  const reportBtn = document.getElementById("report-btn");
   addEventBtn.addEventListener("click", () => {
     if (myId !== gmId) return;
 
     const event = getRandomEvent();
     socket.emit("add-random-event", event);
+  });
+  reportBtn.addEventListener("click", () => {
+    if (!reportWeapon || !reportEvidence) {
+      alert('Bạn phải chọn 1 hung khí và 1 bằng chứng trước khi tố cáo!');
+      return;
+    }
+
+    socket.emit('update-report', {
+      weapon: reportWeapon,
+      evidence: reportEvidence
+    });
+
+    reportBtn.disabled = true;
   });
   socket.on("you-are-gamemaster", () => {
     console.log("Bạn là Quản trò (GM)!");
@@ -500,10 +531,78 @@ socket.on("chat-message", ({ sender, content }) => {
 });
 
 socket.on("private-message", ({ message }) => {
+  gmChatHistory.push(message);
   const chatBox = document.getElementById("gm-chat-log");
   const entry = document.createElement("div");
   entry.innerHTML = message.replace(/\n/g, "<br>");
   chatBox.appendChild(entry);
+});
+
+socket.on("witness-info", ({ murdererName }) => {
+  alert(`🕵️ Bạn là Nhân chứng. Hung thủ là: ${murdererName}`);
+  addChatMessage("Hệ thống", `Bạn là Nhân chứng. Hung thủ là: ${murdererName}`);
+});
+
+socket.on("game-ended-awaiting-shot", () => {
+  const reportBtn = document.getElementById("report-btn");
+  if (reportBtn) {
+    reportBtn.disabled = true;
+  }
+});
+
+socket.on("murderer-must-shoot", ({ targets }) => {
+  if (!Array.isArray(targets) || targets.length === 0) {
+    alert("Không có mục tiêu hợp lệ để bắn.");
+    return;
+  }
+
+  const oldPanel = document.getElementById("shoot-panel");
+  if (oldPanel) oldPanel.remove();
+
+  const panel = document.createElement("div");
+  panel.id = "shoot-panel";
+  panel.style.border = "2px solid #c0392b";
+  panel.style.padding = "12px";
+  panel.style.margin = "12px 0";
+  panel.style.borderRadius = "8px";
+  panel.style.backgroundColor = "#fff5f5";
+
+  const title = document.createElement("h3");
+  title.innerText = "💥 Chọn 1 người để bắn";
+  panel.appendChild(title);
+
+  const note = document.createElement("p");
+  note.innerText = "Bạn là hung thủ. Hãy chọn chính xác 1 mục tiêu.";
+  panel.appendChild(note);
+
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.flexWrap = "wrap";
+  actions.style.gap = "8px";
+
+  targets.forEach((target) => {
+    const btn = document.createElement("button");
+    btn.classList.add("cell-button");
+    btn.innerText = `Bắn ${target.name}`;
+    btn.addEventListener("click", () => {
+      socket.emit("murderer-shoot", { targetId: target.id });
+      panel.remove();
+    });
+    actions.appendChild(btn);
+  });
+
+  panel.appendChild(actions);
+  document.body.appendChild(panel);
+});
+
+socket.on("murderer-shot-result", ({ shooterName, targetName, didHitWitness, winner }) => {
+  const panel = document.getElementById("shoot-panel");
+  if (panel) panel.remove();
+  const murdererWins = winner === 'Murderer' || didHitWitness === true;
+  const resultMessage = murdererWins
+    ? "Sát nhân thắng vì đã bắn trúng Nhân chứng."
+    : "Phe người chơi thắng vì sát nhân không bắn trúng Nhân chứng.";
+  alert(`${shooterName} đã bắn ${targetName}. ${resultMessage}`);
 });
 
 // const reportButton = document.getElementById("report-button");
