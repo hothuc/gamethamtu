@@ -32,6 +32,58 @@ let awaitingMurdererShot = false;
 let includeAccomplice = false;
 let reportedPlayerIds = new Set();
 let gameEnded = false;
+let usedEventTypeKeys = new Set();
+
+function getEventTypeKey(eventRow) {
+  return eventRow[1];
+}
+
+function resetRoundEventState() {
+  usedEventTypeKeys = new Set();
+  selectedEvents.clear();
+}
+
+function pickRandomUnusedEvent() {
+  const available = eventTiles.filter((row) => !usedEventTypeKeys.has(getEventTypeKey(row)));
+  if (available.length === 0) return null;
+
+  const picked = available[Math.floor(Math.random() * available.length)];
+  usedEventTypeKeys.add(getEventTypeKey(picked));
+  return picked;
+}
+
+function sendGmRoleSummary() {
+  if (!gmId || !players[gmId]) {
+    if (hostId) {
+      io.to(hostId).emit('message', 'Hãy chọn Quản trò trước khi bắt đầu ván để xem phân vai!');
+    }
+    return;
+  }
+
+  const gmVisibleRoles = new Set(['Murderer', 'Witness', 'Accomplice']);
+  const rolesByPlayer = {};
+  const roleLabel = {
+    Murderer: 'Sát nhân',
+    Witness: 'Nhân chứng',
+    Accomplice: 'Tòng phạm'
+  };
+  const readableLines = ['🔐 Phân vai ván này:'];
+
+  Object.keys(players).forEach((id) => {
+    if (id === gmId) return;
+    const role = roles[id];
+    if (!role || !gmVisibleRoles.has(role)) return;
+    rolesByPlayer[id] = role;
+    readableLines.push(`- ${players[id]}: ${roleLabel[role] || role}`);
+  });
+
+  const message = readableLines.join('\n');
+  io.to(gmId).emit('gm-role-summary', {
+    message,
+    rolesByPlayer,
+    players: { ...players }
+  });
+}
 
 function getRequiredReporters() {
   return Object.keys(players).filter((id) => id !== gmId);
@@ -108,6 +160,7 @@ function assignRoles() {
   awaitingMurdererShot = false;
   reportedPlayerIds = new Set();
   gameEnded = false;
+  resetRoundEventState();
 
   // Loại GM khỏi danh sách phân vai
   const assignableIds = ids.filter(id => id !== gmId);
@@ -212,6 +265,8 @@ function assignRoles() {
   	});
   });
 
+  setImmediate(sendGmRoleSummary);
+
   return true;
 }
 
@@ -223,6 +278,7 @@ io.on('connection', (socket) => {
     awaitingMurdererShot = false;
     gameEnded = false;
     reportedPlayerIds = new Set();
+    resetRoundEventState();
     io.emit('reset-game');
   });
 
@@ -250,6 +306,10 @@ io.on('connection', (socket) => {
 
   	gmId = selectedId;
     io.to(gmId).emit("you-are-gamemaster");
+
+    if (murderSet.murdererId) {
+      sendGmRoleSummary();
+    }
 
     broadcastPlayerList();
   });
@@ -280,6 +340,7 @@ io.on('connection', (socket) => {
     awaitingMurdererShot = false;
     gameEnded = false;
     reportedPlayerIds = new Set();
+    resetRoundEventState();
     io.emit("new-round");
     io.emit('reset-game');
 
@@ -321,10 +382,17 @@ io.on('connection', (socket) => {
     // Gửi lại cho tất cả người chơi (kể cả người gửi)
     io.emit("tileSelected", data);
   });
-  socket.on("add-random-event", (event) => {
+  socket.on("add-random-event", () => {
+    if (socket.id !== gmId) return;
+
+    const event = pickRandomUnusedEvent();
+    if (!event) {
+      io.to(gmId).emit('message', 'Đã hết loại sự kiện mới trong ván này!');
+      return;
+    }
+
     const rowId = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-    // Gửi event đến tất cả client
-    io.emit("new-event", {event,rowId});
+    io.emit("new-event", { event, rowId });
   });
 
   socket.on("toggle-event", (eventItem) => {

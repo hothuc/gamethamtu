@@ -108,6 +108,19 @@ input[type="checkbox"] {
   background: #eee;
   border: 1px solid #ccc;
   border-radius: 6px;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+  max-width: 100%;
+}
+
+.event-btn-long {
+  flex: 1 1 100%;
+  min-width: 280px;
+}
+
+#event-container {
+  max-width: 900px;
 }
 
 .remove-row-btn {
@@ -147,8 +160,20 @@ input[type="checkbox"] {
   gap: 5px;
 }
 
-.chat-message {
-  background-color: #e2e2e2;
-  padding: 5px 10px;
-  border-radius: 5px;
+.gm-internal-entry {
+  background-color: #fff3cd;
+  border: 1px solid #f0d58c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+#gm-chat-log {
+  max-width: 420px;
+  margin: 12px 0;
+  padding: 10px;
+  background: #fffdf5;
+  border: 1px solid #e6d9a8;
+  border-radius: 8px;
 }

@@ -11,6 +11,7 @@ let selectedEvidence = null;
 let currentRole = null;
 let includeAccomplice = false;
 let hostSettingsInitialized = false;
+let gmPlayerRoles = {};
 
 const ROLE_LABELS = {
   Murderer: 'Sát nhân',
@@ -24,11 +25,94 @@ function getRoleLabel(role) {
   return ROLE_LABELS[role] || role;
 }
 
+const GM_VISIBLE_ROLES = new Set(['Murderer', 'Witness', 'Accomplice']);
+
+function buildGmRoleSummary(rolesByPlayer, players) {
+  const filteredRoles = {};
+  const lines = ['🔐 Phân vai ván này:'];
+
+  Object.entries(rolesByPlayer || {}).forEach(([id, role]) => {
+    if (!GM_VISIBLE_ROLES.has(role)) return;
+    filteredRoles[id] = role;
+    const name = players?.[id] || 'Người chơi';
+    lines.push(`- ${name}: ${getRoleLabel(role)}`);
+  });
+
+  return { filteredRoles, message: lines.join('\n') };
+}
+
 function clearGmInternalChat() {
   gmChatHistory = [];
+  gmPlayerRoles = {};
   const chatBox = document.getElementById('gm-chat-log');
   if (!chatBox) return;
   chatBox.innerHTML = '<h4>Lịch sử nội bộ</h4>';
+}
+
+function showGmInternalChat() {
+  const chatBox = document.getElementById('gm-chat-log');
+  if (chatBox) chatBox.style.display = 'block';
+}
+
+function appendGmInternalMessage(message) {
+  gmChatHistory.push(message);
+  showGmInternalChat();
+  const chatBox = document.getElementById('gm-chat-log');
+  if (!chatBox) return;
+  const entry = document.createElement('div');
+  entry.classList.add('gm-internal-entry');
+  entry.innerHTML = message.replace(/\n/g, '<br>');
+  chatBox.appendChild(entry);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function renderPlayerList(players) {
+  const playersDiv = document.getElementById('players');
+  playersDiv.innerHTML = '<h3>👥 Người chơi:</h3>';
+
+  for (const [id, name] of Object.entries(players)) {
+    const playerLine = document.createElement('div');
+    playerLine.style.display = 'flex';
+    playerLine.style.alignItems = 'center';
+    playerLine.style.gap = '8px';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.innerText = name;
+    playerLine.appendChild(nameSpan);
+
+    if (myId === hostId) {
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = (id === gmId);
+      checkbox.onclick = () => {
+        socket.emit('set-gamemaster', id);
+      };
+      playerLine.appendChild(checkbox);
+    }
+
+    if (id === gmId) {
+      const gmLabel = document.createElement('span');
+      gmLabel.innerText = '🎲 Quản trò';
+      playerLine.appendChild(gmLabel);
+    }
+
+    if (myId === gmId && gmPlayerRoles[id] && gmPlayerRoles[id] !== 'Investigator') {
+      const roleLabel = document.createElement('span');
+      roleLabel.style.fontWeight = 'bold';
+      roleLabel.style.color = '#8b0000';
+      roleLabel.innerText = `[${getRoleLabel(gmPlayerRoles[id])}]`;
+      playerLine.appendChild(roleLabel);
+    }
+
+    playersDiv.appendChild(playerLine);
+  }
+
+  const eventBtn = document.getElementById('add-event-btn');
+  if (myId === gmId) {
+    eventBtn.style.display = 'inline-block';
+  } else {
+    eventBtn.style.display = 'none';
+  }
 }
 
 function resetReportUI() {
@@ -47,6 +131,8 @@ function resetReportUI() {
   const oldConfirmBtn = document.getElementById('confirmBtn');
   if (oldConfirmBtn) oldConfirmBtn.remove();
   clearGmInternalChat();
+  const eventContainer = document.getElementById('event-container');
+  if (eventContainer) eventContainer.innerHTML = '';
 }
 
 function joinGame() {
@@ -78,50 +164,15 @@ socket.on('player-list', ({ players, hostId: hId, gmId: serverGmId, myId: client
 
   const accompCheckbox = document.getElementById('include-accomplice-checkbox');
   if (accompCheckbox) accompCheckbox.checked = includeAccomplice;
-  
-  const playersDiv = document.getElementById('players');
-  playersDiv.innerHTML = '<h3>👥 Người chơi:</h3>';
 
-  for (const [id, name] of Object.entries(players)) {
-    const playerLine = document.createElement('div');
-    playerLine.style.display = 'flex';
-    playerLine.style.alignItems = 'center';
-    playerLine.style.gap = '8px';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.innerText = name;
-
-    playerLine.appendChild(nameSpan);
-
-    // Nếu là host, thêm checkbox để chọn GM
-    if (myId === hostId) {
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = (id === gmId);
-      checkbox.onclick = () => {
-        socket.emit('set-gamemaster', id);
-      };
-      playerLine.appendChild(checkbox);
-    }
-
-    // Nếu là GM, thêm biểu tượng
-    if (id === gmId) {
-      const gmLabel = document.createElement('span');
-      gmLabel.innerText = '🎲 Quản trò';
-      playerLine.appendChild(gmLabel);
-    }
-
-    playersDiv.appendChild(playerLine);
-  }
-  const eventBtn = document.getElementById("add-event-btn");
-    if (myId === gmId) {
-      eventBtn.style.display = "inline-block";
-    } else {
-      eventBtn.style.display = "none";
-    }
+  renderPlayerList(players);
 });
 
 
+
+socket.on('you-are-gamemaster', () => {
+  showGmInternalChat();
+});
 
 socket.on('role', (role) => {
   currentRole = role;
@@ -454,50 +505,52 @@ socket.on('enable-interaction', () => {
   });
 });
 
-function getRandomEvent() {
-  const index = Math.floor(Math.random() * eventTiles.length);
-  return eventTiles[index];
+function isBrownCategoryLabel(text) {
+  return /^Brown(\(|$)/i.test(String(text).trim());
 }
 
-socket.on("new-event", ({event: eventArray,rowId}) => {
+function getDisplayableEventItems(eventArray) {
+  return eventArray.filter((item) => !isBrownCategoryLabel(item));
+}
+
+socket.on("new-event", ({event: eventArray, rowId}) => {
   const container = document.getElementById("event-container");
-  const groupSize = 8;
-  for (let i = 0; i < eventArray.length; i += groupSize) {
-    const rowDiv = document.createElement("div");
-    rowDiv.classList.add("event-row");
-    rowDiv.dataset.rowId = rowId; // Đánh dấu index hàng
+  const rowDiv = document.createElement("div");
+  rowDiv.classList.add("event-row");
+  rowDiv.dataset.rowId = rowId;
 
-    const group = eventArray.slice(i, i + groupSize);
-    
-    group.forEach((eventItem) => {
-      const btn = document.createElement("button");
-      btn.innerText = eventItem;
-      btn.classList.add("event-btn");
+  const displayItems = getDisplayableEventItems(eventArray);
 
-      btn.addEventListener("click", () => {
-        if (myId !== gmId) return;
-        btn.classList.toggle("selected");
-        socket.emit("toggle-event", eventItem);
-      });
-
-      rowDiv.appendChild(btn);
-    });
-
-    // Thêm nút X để xóa hàng
-    if (myId === gmId) {
-      const removeBtn = document.createElement("button");
-      removeBtn.innerText = "X";
-      removeBtn.classList.add("remove-row-btn");
-
-      removeBtn.addEventListener("click", () => {
-        socket.emit("remove-event-row", rowId); // Gửi index dòng cần xóa
-      });
-
-      rowDiv.appendChild(removeBtn);
+  displayItems.forEach((eventItem) => {
+    const btn = document.createElement("button");
+    btn.innerText = eventItem;
+    btn.classList.add("event-btn");
+    if (eventItem.length > 50) {
+      btn.classList.add("event-btn-long");
     }
 
-    container.appendChild(rowDiv);
+    btn.addEventListener("click", () => {
+      if (myId !== gmId) return;
+      btn.classList.toggle("selected");
+      socket.emit("toggle-event", eventItem);
+    });
+
+    rowDiv.appendChild(btn);
+  });
+
+  if (myId === gmId) {
+    const removeBtn = document.createElement("button");
+    removeBtn.innerText = "X";
+    removeBtn.classList.add("remove-row-btn");
+
+    removeBtn.addEventListener("click", () => {
+      socket.emit("remove-event-row", rowId);
+    });
+
+    rowDiv.appendChild(removeBtn);
   }
+
+  container.appendChild(rowDiv);
 });
 
 socket.on("remove-event-row", (rowId) => {
@@ -515,9 +568,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const reportBtn = document.getElementById("report-btn");
   addEventBtn.addEventListener("click", () => {
     if (myId !== gmId) return;
-
-    const event = getRandomEvent();
-    socket.emit("add-random-event", event);
+    socket.emit("add-random-event");
   });
   reportBtn.addEventListener("click", () => {
     if (!reportWeapon || !reportEvidence) {
@@ -532,11 +583,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     reportBtn.disabled = true;
   });
-  socket.on("you-are-gamemaster", () => {
-    console.log("Bạn là Quản trò (GM)!");
-    document.getElementById("gm-chat-log").style.display = "block";
-  });
-  
 });
 
 socket.on("toggle-event", (eventItem) => {
@@ -592,11 +638,16 @@ socket.on("chat-message", ({ sender, content }) => {
 });
 
 socket.on("private-message", ({ message }) => {
-  gmChatHistory.push(message);
-  const chatBox = document.getElementById("gm-chat-log");
-  const entry = document.createElement("div");
-  entry.innerHTML = message.replace(/\n/g, "<br>");
-  chatBox.appendChild(entry);
+  if (myId !== gmId) return;
+  appendGmInternalMessage(message);
+});
+
+socket.on('gm-role-summary', ({ rolesByPlayer, players }) => {
+  if (myId !== gmId) return;
+  const { filteredRoles, message } = buildGmRoleSummary(rolesByPlayer, players);
+  gmPlayerRoles = filteredRoles;
+  appendGmInternalMessage(message);
+  if (players) renderPlayerList(players);
 });
 
 function notifyMurdererIdentity(roleLabel, murdererName) {

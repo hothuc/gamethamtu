@@ -32,12 +32,12 @@ const eventTiles = [
   ["Brown( Nâu)", "In Progress( Đang làm gì)", "Entertainment( Giải trí)", "Relaxation( Nghỉ ngơi)", "Assembly( Tụ họp)", "Trading( Giao dịch)", "Visit( Thăm viếng)", "Dining( Ăn uống)"],
   ["Brown( Nâu)", "Sudden Incident( Sự cố đột ngột)", "Power Failure( Mất điện)", "Fire( Hỏa hoạn)", "Conflict( Xung đột)", "Loss of Valuables( Mất đồ quý)", "Scream( Tiếng la hét)", "Nothing( Không có gì)"],
   ["Brown( Nâu)", "Day of Crime( Ngày phạm tội)", "Weekday( Ngày thường)", "Weekend( Cuối tuần)", "Spring( Mùa xuân)", "Summer( Mùa hè)", "Autumn( Mùa thu)", "Winter( Mùa đông)"],
-  ["Special( Đặc biệt)", "Countdown( Đếm ngược)", "The Forensic Scientist draws 2 scene tiles and substitutes them...( Nhà khoa học pháp y rút 2 thẻ hiện trường và thay thế chúng...)"],
-  ["Special( Đặc biệt)", "Erroneous Information( Thông tin sai lệch)", "The Forensic Scientist chooses 1 scene tile and changes it...( Nhà khoa học pháp y chọn 1 thẻ hiện trường và thay đổi nó...)"],
-  ["Special( Đặc biệt)", "A Good Twist( Bước ngoặt hay)", "Previous winner gets a bonus guess...( Người thắng ván trước được đoán thêm một lần...)"],
-  ["Special( Đặc biệt)", "A Useful Clue( Manh mối hữu ích)", "Forensic draws 5 new scene tiles...( Nhà khoa học pháp y rút 5 thẻ hiện trường mới...)"],
-  ["Special( Đặc biệt)", "Ruled Out Evidence( Loại trừ bằng chứng)", "Each player flips one of their own clue cards...( Mỗi người chơi lật một thẻ manh mối của mình...)"],
-  ["Special( Đặc biệt)", "Secret Testimony( Lời khai bí mật)", "Witness points at a tile to eliminate...( Nhân chứng chỉ vào một ô để loại trừ...)"]
+  ["Special( Đặc biệt)", "Countdown( Đếm ngược)", "The Forensic Scientist draws 2 scene tiles and substitutes them( Nhà khoa học pháp y rút 2 thẻ hiện trường và thay thế chúng bằng 2 thẻ mới từ cục nghiệp vụ)"],
+  ["Special( Đặc biệt)", "Erroneous Information( Thông tin sai lệch)", "The Forensic Scientist chooses 1 scene tile and changes it( Nhà khoa học pháp y chọn 1 thẻ hiện trường và thay đổi nội dung của thẻ đó)"],
+  ["Special( Đặc biệt)", "A Good Twist( Bước ngoặt hay)", "Previous winner gets a bonus guess( Người thắng ván trước được đoán thêm một lần)"],
+  ["Special( Đặc biệt)", "A Useful Clue( Manh mối hữu ích)", "Forensic draws 5 new scene tiles( Nhà khoa học pháp y rút 5 thẻ hiện trường mới)"],
+  ["Special( Đặc biệt)", "Ruled Out Evidence( Loại trừ bằng chứng)", "Each player flips one of their own clue cards( Mỗi người chơi lật một thẻ manh mối của mình để loại trừ)"],
+  ["Special( Đặc biệt)", "Secret Testimony( Lời khai bí mật)", "Witness points at a tile to eliminate( Nhân chứng chỉ vào một ô để loại trừ khỏi danh sách nghi vấn)"]
 ];
 
 if (typeof module !== 'undefined') {
