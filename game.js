@@ -9,6 +9,20 @@ let reportEvidence = null;
 let selectedWeapon = null;
 let selectedEvidence = null;
 let currentRole = null;
+let includeAccomplice = false;
+let hostSettingsInitialized = false;
+
+const ROLE_LABELS = {
+  Murderer: 'Sát nhân',
+  Witness: 'Nhân chứng',
+  Accomplice: 'Tòng phạm',
+  Investigator: 'Điều tra viên',
+  'Quản trò': 'Quản trò'
+};
+
+function getRoleLabel(role) {
+  return ROLE_LABELS[role] || role;
+}
 
 function clearGmInternalChat() {
   gmChatHistory = [];
@@ -40,17 +54,30 @@ function joinGame() {
   socket.emit('join', name);
 }
 
+function getIncludeAccompliceChoice() {
+  const accompCheckbox = document.getElementById('include-accomplice-checkbox');
+  return accompCheckbox ? accompCheckbox.checked : includeAccomplice;
+}
+
 function startGame() {
-  socket.emit('start-game');
+  const withAccomplice = getIncludeAccompliceChoice();
+  includeAccomplice = withAccomplice;
+  socket.emit('start-game', { includeAccomplice: withAccomplice });
 }
 
 window.joinGame = joinGame;
 window.startGame = startGame;
 
-socket.on('player-list', ({  players, hostId: hId, gmId: serverGmId, myId: clientId }) => {
+socket.on('player-list', ({ players, hostId: hId, gmId: serverGmId, myId: clientId, includeAccomplice: serverIncludeAccomplice }) => {
   hostId = hId;
   gmId = serverGmId;
   myId = clientId;
+  if (typeof serverIncludeAccomplice === 'boolean') {
+    includeAccomplice = serverIncludeAccomplice;
+  }
+
+  const accompCheckbox = document.getElementById('include-accomplice-checkbox');
+  if (accompCheckbox) accompCheckbox.checked = includeAccomplice;
   
   const playersDiv = document.getElementById('players');
   playersDiv.innerHTML = '<h3>👥 Người chơi:</h3>';
@@ -98,18 +125,52 @@ socket.on('player-list', ({  players, hostId: hId, gmId: serverGmId, myId: clien
 
 socket.on('role', (role) => {
   currentRole = role;
-  document.getElementById('role').innerText = `🎭 Vai trò của bạn: ${role}`;
+  document.getElementById('role').innerText = `🎭 Vai trò của bạn: ${getRoleLabel(role)}`;
 });
 
-socket.on('you-are-host', () => {
-  const btn = document.createElement('button');
-  btn.innerText = '🔔 Bắt đầu ván chơi';
-  btn.onclick = () => socket.emit('start-game');
-  document.body.appendChild(btn);
+function ensureHostSettingsUI() {
+  if (hostSettingsInitialized) return;
+  hostSettingsInitialized = true;
 
   const hostNote = document.createElement('div');
+  hostNote.id = 'host-note';
   hostNote.innerText = '👑 Bạn là người điều khiển (host)';
   document.body.appendChild(hostNote);
+
+  const settings = document.createElement('div');
+  settings.id = 'host-settings';
+  settings.style.margin = '8px 0';
+
+  const accompLabel = document.createElement('label');
+  accompLabel.style.display = 'flex';
+  accompLabel.style.alignItems = 'center';
+  accompLabel.style.gap = '8px';
+
+  const accompCheckbox = document.createElement('input');
+  accompCheckbox.type = 'checkbox';
+  accompCheckbox.id = 'include-accomplice-checkbox';
+  accompCheckbox.checked = includeAccomplice;
+  accompCheckbox.addEventListener('change', () => {
+    socket.emit('set-include-accomplice', accompCheckbox.checked);
+  });
+
+  const accompText = document.createElement('span');
+  accompText.innerText = 'Thêm vai Tòng phạm (biết hung thủ)';
+
+  accompLabel.appendChild(accompCheckbox);
+  accompLabel.appendChild(accompText);
+  settings.appendChild(accompLabel);
+  document.body.appendChild(settings);
+
+  const btn = document.createElement('button');
+  btn.id = 'host-start-btn';
+  btn.innerText = '🔔 Bắt đầu ván chơi';
+  btn.onclick = () => startGame();
+  document.body.appendChild(btn);
+}
+
+socket.on('you-are-host', () => {
+  ensureHostSettingsUI();
 });
 
 socket.on('message', msg => {
@@ -538,15 +599,35 @@ socket.on("private-message", ({ message }) => {
   chatBox.appendChild(entry);
 });
 
+function notifyMurdererIdentity(roleLabel, murdererName) {
+  alert(`🕵️ Bạn là ${roleLabel}. Hung thủ là: ${murdererName}`);
+  addChatMessage("Hệ thống", `Bạn là ${roleLabel}. Hung thủ là: ${murdererName}`);
+}
+
 socket.on("witness-info", ({ murdererName }) => {
-  alert(`🕵️ Bạn là Nhân chứng. Hung thủ là: ${murdererName}`);
-  addChatMessage("Hệ thống", `Bạn là Nhân chứng. Hung thủ là: ${murdererName}`);
+  notifyMurdererIdentity('Nhân chứng', murdererName);
 });
 
-socket.on("game-ended-awaiting-shot", () => {
+socket.on("accomplice-info", ({ murdererName }) => {
+  notifyMurdererIdentity('Tòng phạm', murdererName);
+});
+
+function disableReportButton() {
   const reportBtn = document.getElementById("report-btn");
-  if (reportBtn) {
-    reportBtn.disabled = true;
+  if (reportBtn) reportBtn.disabled = true;
+}
+
+socket.on("game-ended-awaiting-shot", () => {
+  disableReportButton();
+});
+
+socket.on("game-ended", ({ winner, reason, murdererName }) => {
+  disableReportButton();
+  const shootPanel = document.getElementById("shoot-panel");
+  if (shootPanel) shootPanel.remove();
+
+  if (reason === 'all-wrong-reports' && winner === 'Murderer') {
+    alert(`🏁 Ván đấu kết thúc!\nTất cả tố cáo đều sai. Phe Sát nhân thắng.\nSát nhân là: ${murdererName}`);
   }
 });
 
@@ -600,7 +681,7 @@ socket.on("murderer-shot-result", ({ shooterName, targetName, didHitWitness, win
   if (panel) panel.remove();
   const murdererWins = winner === 'Murderer' || didHitWitness === true;
   const resultMessage = murdererWins
-    ? "Sát nhân thắng vì đã bắn trúng Nhân chứng."
+    ? "Phe sát nhân thắng vì đã bắn trúng Nhân chứng."
     : "Phe người chơi thắng vì sát nhân không bắn trúng Nhân chứng.";
   alert(`${shooterName} đã bắn ${targetName}. ${resultMessage}`);
 });
